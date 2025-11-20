@@ -1,13 +1,20 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { useRouter, useSegments } from 'expo-router';
-import { getItem, saveItem, deleteItem } from './storage';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  ReactNode,
+} from "react";
+import { useRouter, useSegments } from "expo-router";
+import { getItem, saveItem, deleteItem } from "./storage";
 
-const API_URL = 'https://appdelivery-vwmv.onrender.com';
+const API_URL = "https://appdelivery-vwmv.onrender.com";
 
 interface User {
   id: number;
   name: string;
   email: string;
+  role?: string; // admin o cliente
 }
 
 interface AuthContextData {
@@ -17,15 +24,14 @@ interface AuthContextData {
   token: string | null;
   user: User | null;
   isLoading: boolean;
+  isAdmin: boolean;
 }
-
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 export function useAuth() {
   return useContext(AuthContext);
 }
-
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
@@ -35,68 +41,101 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
 
-  // Cargar token y usuario al iniciar
+  // cargar sesión almacenada
   useEffect(() => {
     const loadAuth = async () => {
-      const storedToken = await getItem('authToken');
-      const storedUser = await getItem('authUser');
+      const storedToken = await getItem("authToken");
+      const storedUser = await getItem("authUser");
+
       if (storedToken) setToken(storedToken);
       if (storedUser) setUser(JSON.parse(storedUser));
+
       setIsLoading(false);
     };
+
     loadAuth();
   }, []);
 
-
+  // protección y redirección automática según rol
   useEffect(() => {
     if (isLoading) return;
-    const inAuthGroup = segments[0] === '(auth)';
-    if (!token && !inAuthGroup) router.replace('/(auth)/login');
-    else if (token && inAuthGroup) router.replace('/(tabs)');
-  }, [token, segments, isLoading]);
 
+    const inAuthGroup = segments[0] === "(auth)";
 
+    if (!token && !inAuthGroup) {
+      router.replace("/(auth)/login");
+      return;
+    }
+
+    if (token && inAuthGroup) {
+      if (user?.role === "admin") {
+        router.replace("/(admin)");
+      } else {
+        router.replace("/(tabs)");
+      }
+    }
+  }, [token, user, segments, isLoading]);
+
+  // login
   const signIn = async (email: string, password: string) => {
     const response = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
 
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Error al iniciar sesión');
+    if (!response.ok) throw new Error(result.error || "Error al iniciar sesión");
 
     setToken(result.access_token);
     setUser(result.user);
-    await saveItem('authToken', result.access_token);
-    await saveItem('authUser', JSON.stringify(result.user));
 
-    router.replace('/(tabs)');
+    await saveItem("authToken", result.access_token);
+    await saveItem("authUser", JSON.stringify(result.user));
+
+    // redirige según rol
+    if (result.user.role === "admin") {
+      router.replace("/(admin)");
+    } else {
+      router.replace("/(tabs)");
+    }
   };
 
+  // registro
   const signUp = async (name: string, email: string, password: string) => {
     const response = await fetch(`${API_URL}/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, password }),
     });
 
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Error al registrarse');
+    if (!response.ok) throw new Error(result.error || "Error al registrarse");
 
-    router.replace('/(auth)/login');
+    router.replace("/(auth)/login");
   };
 
+  // logout
   const signOut = async () => {
     setToken(null);
     setUser(null);
-    await deleteItem('authToken');
-    await deleteItem('authUser');
-    router.replace('/(auth)/login');
+    await deleteItem("authToken");
+    await deleteItem("authUser");
+    router.replace("/(auth)/login");
   };
 
   return (
-    <AuthContext.Provider value={{ signIn, signUp, signOut, token, user, isLoading }}>
+    <AuthContext.Provider
+      value={{
+        signIn,
+        signUp,
+        signOut,
+        token,
+        user,
+        isLoading,
+        isAdmin: user?.role === "admin",
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

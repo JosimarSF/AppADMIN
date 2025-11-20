@@ -13,6 +13,10 @@ const COLORS = {
 export default function TabLayout() {
   const { bottom } = useSafeAreaInsets();
 
+  const tabBarIcon = (focused: boolean, active: string, inactive: string, color: string) => (
+    <Ionicons name={focused ? active : inactive} size={26} color={color} />
+  );
+
   return (
     <Tabs
       screenOptions={{
@@ -40,9 +44,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Menú',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-            <Ionicons name={focused ? 'restaurant' : 'restaurant-outline'} size={26} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            tabBarIcon(focused, 'restaurant', 'restaurant-outline', color),
         }}
       />
 
@@ -50,9 +53,8 @@ export default function TabLayout() {
         name="cart"
         options={{
           title: 'Carrito',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-            <Ionicons name={focused ? 'cart' : 'cart-outline'} size={26} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            tabBarIcon(focused, 'cart', 'cart-outline', color),
         }}
       />
 
@@ -60,9 +62,8 @@ export default function TabLayout() {
         name="orders/index"
         options={{
           title: 'Pedidos',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-            <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={26} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            tabBarIcon(focused, 'receipt', 'receipt-outline', color),
         }}
       />
     </Tabs>
